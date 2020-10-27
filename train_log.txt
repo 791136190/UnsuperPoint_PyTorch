@@ -1,0 +1,25 @@
+1、尝试恢复出能有基本效果的参数，目前怀疑lr的问题，降低到0.001尝试
+
+2、lr=0.001，sgd的时候，usp loss 只能从2.6x降低到2.3x 包含了所有loss一起的情况
+
+3、lr=0.1，sgd或者0.001，adam 只有usp loss可以从2.6x降低到1.x，1个epoch
+
+4、3次lr的de后期曲线基本没有下降，尝试减少一次，推迟第一次下降的点
+组合usp+uni_xy的时候，uni_xy的loss似乎过大了，会导致训练被这一项主导，从而usp loss完全训不动
+
+5、将uni_xy的权重从100降低到10
+
+6、
+        usp: 1.0
+        uni_xy: 1.0 -> 0.75
+        desc: 0.5 -> 2.0
+        decorr: 0.05
+    position_weight: 1.0
+    score_weight: 2.0
+    rep_weight: 1.0 -> 1.5
+
+        usp loss: 1.1
+        uni_xy loss:: 0.64
+        desc loss:: 0.06
+        decorr loss:: 0.1
+
