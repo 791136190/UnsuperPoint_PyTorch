@@ -11,7 +11,7 @@ from Unsuper.utils.train_utils import build_optimizer, build_scheduler
 from symbols.model_base import ModelTemplate
 from Unsuper.utils.train_utils import train_model
 import torch.distributed as dist
-
+os.environ['CUDA_VISIBLE_DEVICES'] = ""
 from pathlib import Path
 import argparse
 import datetime
@@ -77,9 +77,8 @@ def main():
 
     # log to file
     logger.info('**********************Start logging**********************')
-#     gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
-    gpu_list = ""
-    
+    gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
+
     logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
 
     if dist_train:

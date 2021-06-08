@@ -2,6 +2,8 @@ data:
     train_name: 'COCODataset'
     train_path: '/opt/train_data/COCO_data/'
     val_path: '/opt/train_data/COCO_data/hpatches-sequences-release/'
+#    train_path: '/media/bodong/data/data'
+#    val_path: '/media/bodong/data/data'
     export_name: 'HPatch'
     truncate: 1.0
     export_size: 320
@@ -13,7 +15,7 @@ data:
         scale: 0.2
         perspective: 0.2
     IMAGE_SHAPE: [240, 320]
-    batch_size: 128
+    batch_size: 4
 
 MODEL:
     name: 'UnsuperPoint'
