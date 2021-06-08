@@ -1,6 +1,7 @@
 data:
     train_name: 'COCODataset'
-    train_path: './Data'
+    train_path: '/opt/train_data/COCO_data/'
+    val_path: '/opt/train_data/COCO_data/hpatches-sequences-release/'
     export_name: 'HPatch'
     truncate: 1.0
     export_size: 320
