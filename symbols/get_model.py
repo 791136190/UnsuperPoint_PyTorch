@@ -221,9 +221,9 @@ class UnSuperPoint(ModelTemplate):
         # uni_l1 = torch.mean(torch.pow(position - (i - 1) / (p - 1), 2))
 
         idx = torch.argsort(position)  # 返回的索引是0开始的 上面的方式loss会略大0.000x级别
-        idx = idx.float()
+        idx_f = idx.float()
         p = position.shape[0]
-        uni_l2 = torch.mean(torch.pow(position - (idx / p), 2))
+        uni_l2 = torch.sum(torch.pow(position[idx] - (idx_f / p), 2))
 
         return uni_l2
 
