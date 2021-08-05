@@ -188,14 +188,14 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
                (points[:, 1] >= 0) & (points[:, 1] < shape[1])
         return points[mask, :], prob[mask, :], des[mask, :]
 
-    def keep_true_keypoints(points, H, shape):
+    def keep_true_keypoints(points, prob, des, H, shape):
         """ Keep only the points whose warped coordinates by H
         are still inside shape. """
         warped_points = warp_keypoints(points[:, [0, 1]], H)
         warped_points[:, [0, 1]] = warped_points[:, [0, 1]]
         mask = (warped_points[:, 0] >= 0) & (warped_points[:, 0] < shape[0]) &\
                (warped_points[:, 1] >= 0) & (warped_points[:, 1] < shape[1])
-        return points[mask, :]
+        return points[mask, :], prob[mask, :], des[mask, :]
 
     def select_k_best(points, prob, des, k):
         """ Select the k most probable points (and strip their proba).
@@ -271,9 +271,9 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
         # warped_keypoints = np.stack([warped_keypoints[0],
         #                              warped_keypoints[1],
         #                              warped_prob], axis=-1)
-        # warped_keypoints = keep_true_keypoints(warped_keypoints, np.linalg.inv(H), shape)
+        warped_keypoints, warped_prob, warped_des = keep_true_keypoints(warped_keypoints, warped_prob, warped_des, np.linalg.inv(H), shape)
         # warped_keypoints = keep_true_keypoints(warped_keypoints, H, shape)
-        warped_keypoints, warped_prob, warped_des = filter_keypoints(warped_keypoints, warped_prob, warped_des, shape)
+#         warped_keypoints, warped_prob, warped_des = filter_keypoints(warped_keypoints, warped_prob, warped_des, shape)
 
         # Warp the original keypoints with the true homography
         true_warped_keypoints = warp_keypoints(keypoints[:, [0, 1]], H)

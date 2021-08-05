@@ -3,7 +3,7 @@ import sys
 sys.path.append('./')
 import torch
 import torch.nn as nn
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from Unsuper.configs.config import cfg, log_config_to_file, cfg_from_list, cfg_from_yaml_file
 from Unsuper.utils import common_utils
 from Unsuper.dataset import build_dataloader
@@ -11,8 +11,8 @@ from Unsuper.utils.train_utils import build_optimizer, build_scheduler
 from symbols.model_base import ModelTemplate
 from Unsuper.utils.train_utils import train_model
 import torch.distributed as dist
-
-# from pathlib import Path
+os.environ['CUDA_VISIBLE_DEVICES'] = ""
+from pathlib import Path
 import argparse
 import datetime
 
@@ -78,6 +78,7 @@ def main():
     # log to file
     logger.info('**********************Start logging**********************')
     gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
+
     logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
 
     if dist_train:
@@ -91,8 +92,8 @@ def main():
 
     # PS D:\Program Files\tf_env\Scripts> .\tensorboard.exe --logdir=X:\project\UnsuperPoint\output\tensorboard --host=127.0.0.1 --port=8888
     # http://127.0.0.1:8888
-    tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
-
+#     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    tb_log = None
     # -----------------------create dataloader & network & optimizer---------------------------
     train_set, train_loader, train_sampler = build_dataloader(
         dataset_cfg=cfg['data'],
