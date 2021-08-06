@@ -291,6 +291,9 @@ def compute_repeatability(eval_out, eval_data='', keep_k_points=300,
         print("eval image size by W x H: ", size_eval)
         print("Average number of points in the first image: " + str(np.mean(N1s)))
         print("Average number of points in the second image: " + str(np.mean(N2s)))
+        print('repeatability:', np.mean(repeatability))
+        print('loc l1 error pixel:', np.mean(error))
+        print('cosine similarity rang[-1, 1]:', np.mean(sim))
     # return np.mean(repeatability), np.mean(np.concatenate(error)), np.mean(sim)
     return np.mean(repeatability), np.mean(error), np.mean(sim)
 

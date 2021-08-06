@@ -79,32 +79,25 @@ def evaluation(model, eval_topk=300, eval_dis=3, shape=[240,320],border_remove=4
     image_list = sorted(glob.glob(val_path))
 
     # output image list result
-    inference(model, image_list, eval_out, shape, border_remove)
+    # inference(model, image_list, eval_out, shape, border_remove)
 
     # for illumination
+    print('******illumination******')
     repeatability1, loc_error1, sim1 = compute_repeatability(eval_out=eval_out, eval_data='i',
                                                           keep_k_points=eval_topk, distance_thresh=eval_dis,
                                                           verbose=True)
+    print('******view point******')
     # for view point change
     repeatability2, loc_error2, sim2 = compute_repeatability(eval_out=eval_out, eval_data='v',
                                                           keep_k_points=eval_topk, distance_thresh=eval_dis,
                                                           verbose=True)
-    print('illumination')
-    print('repeatability:', repeatability1)
-    print('loc l1 error pixel:', loc_error1)
-    print('cosine similarity rang[-1, 1]:', sim1)
-    print('view point')
-    print('repeatability:', repeatability2)
-    print('loc l1 error pixel:', loc_error2)
-    print('cosine similarity rang[-1, 1]:', sim2)
+
 
     # calculate homo
     correctness_thresh = [1,3,4]
     correctness = []
     for thres in correctness_thresh:
         result = homography_estimation(eval_out, correctness_thresh=thres)
-        print('Homography estimation at', thres)
-        print('correctness:', result)
         correctness.append(result)
     return repeatability2, loc_error2, sim2, correctness
 

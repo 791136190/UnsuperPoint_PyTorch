@@ -116,6 +116,8 @@ def homography_estimation(eval_out, keep_k_points=1000,
         correctness.append(estimates['correctness'])
 
     if verbose:
+        print('******eval homo******')
+        print(('keep_k_points:%d, correctness_thresh:%d' % (keep_k_points, correctness_thresh)))
         print("eval image size by W x H: ", size_eval)
         print("correctness is ", np.mean(correctness))
     return np.mean(correctness)
@@ -145,7 +147,6 @@ if __name__ == '__main__':
     eval_out = '/home/bodong/hpatches_result_sp/'
     correctness_thresh = 1
     keep_k_points = 1000
-    print(('\nkeep_k_points:%d, correctness_thresh:%d' % (keep_k_points, correctness_thresh)))
 
     correct = homography_estimation(eval_out=eval_out, keep_k_points=keep_k_points,
                                                           correctness_thresh=correctness_thresh, verbose=True)
