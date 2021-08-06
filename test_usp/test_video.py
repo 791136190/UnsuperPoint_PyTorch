@@ -38,8 +38,8 @@ def parse_config():
 
 def main():
     args, cfg = parse_config()
-
-    ckpt_dir = '../output/ckpt/checkpoint_epoch_20.pth'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    ckpt_dir = '../output/ckpt/checkpoint_epoch_14.pth'
 
     model = get_sym(model_config=cfg['MODEL'], image_shape=cfg['data']['IMAGE_SHAPE'], is_training=False)
 
@@ -53,7 +53,7 @@ def main():
 
     video_name = 'RollerCoaster'  # car car2 daily fly robot skate under RollerCoaster rotate
     data_root = '../Data/SLAM/video/%s.flv' % video_name
-
+    data_root = '/home/bodong/Downloads/save_img/output.avi'
     cap = cv2.VideoCapture(data_root + '')
 
     cur_index = 0
@@ -68,7 +68,7 @@ def main():
         fourcc = cv2.VideoWriter_fourcc(*'DIVX')
         video_writer = cv2.VideoWriter(save_name, fourcc, fps, size)
 
-    sift = cv2.SIFT_create()
+    # sift = cv2.SIFT_create()
     orb = cv2.ORB_create()
     bf_hm = cv2.BFMatcher(normType=cv2.NORM_HAMMING, crossCheck=True)
     bf = cv2.BFMatcher(normType=cv2.NORM_L2, crossCheck=True)
@@ -80,8 +80,9 @@ def main():
     do_match_num = 10
 
     with torch.no_grad():
-        model.load_params_from_file(filename=ckpt_dir, logger=logger, to_cpu=False)
-        model.cuda()
+        model.load_params_from_file(filename=ckpt_dir, logger=logger, to_cpu=True)
+        # model.cuda()
+        model.to(device)
 
         while cap.isOpened():
 
@@ -99,7 +100,8 @@ def main():
             src_img = torch.tensor(resize_img, dtype=torch.float32)
             src_img = torch.unsqueeze(src_img, 0)
             src_img = src_img.permute(0, 3, 1, 2)
-            img0_tensor = src_img.cuda()
+            # img0_tensor = src_img.cuda()
+            img0_tensor = src_img.to(device)
             pred_dict = model.predict(img0_tensor)
             for j in pred_dict.keys():
 
@@ -114,7 +116,7 @@ def main():
                 p1 = input[keep, 1:3]
                 d1 = input[keep, 3:]
 
-                loc = np.where(s1 > 0.7)
+                loc = np.where(s1 > 0.9)
                 s1 = s1[loc]
                 p1 = p1[loc]
                 d1 = d1[loc]

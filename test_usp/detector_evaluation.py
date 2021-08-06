@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 from os import path as osp
 from glob import glob
@@ -5,23 +7,11 @@ from pathlib import Path
 import re
 import os
 import cv2
+from .util_eval import warp_kpt, filter_keypoints, keep_true_keypoints, select_k_best, get_paths_out
 
 eval_root_path = '../output/eval/eval_all/'  # epoch_2/HPatch/
-data_root_path = '../Data/'  # HPatch/
-def get_paths_out(path_name):
-    """
-    Return a list of paths to the outputs of the experiment.
-    """
-    # return glob(osp.join(EXPER_PATH, 'outputs/{}/*.npz'.format(exper_name)))
+data_root_path = '/opt/train_data/COCO_data/'  # HPatch/
 
-    base_path = Path(path_name)
-    folders = list(base_path.iterdir())
-    out_paths = []
-    for folder in folders:
-        out = glob(str(folder) + '/*.usp')
-        out_paths += out
-    out_paths = sorted(out_paths)
-    return out_paths
 
 def get_paths_data(path_name):
     """
@@ -160,56 +150,17 @@ def compute_loc_error(eval_out, prob_thresh=0.5, distance_thresh=2):
     return np.mean(np.concatenate(error))
 
 
-def compute_repeatability(eval_out, eval_data, keep_k_points=300,
-                          distance_thresh=3, verbose=False):
+
+def compute_repeatability(eval_out, eval_data='', keep_k_points=300,
+                          distance_thresh=3, size_eval=[320,240], verbose=False):
     """
     Compute the repeatability. The experiment must contain in its output the prediction
     on 2 images, an original image and a warped version of it, plus the homography
     linking the 2 images.
     """
-    def warp_keypoints(keypoints, H):
-        # num_points = keypoints.shape[0]
-        # homogeneous_points = np.concatenate([keypoints, np.ones((num_points, 1))], axis=1)
-        # warped_points = np.dot(homogeneous_points, np.transpose(H))
-        # return warped_points[:, :2] / warped_points[:, 2:]
 
-        r = np.zeros_like(keypoints)
 
-        Denominator = keypoints[:, 0] * H[2, 0] + keypoints[:, 1] * H[2, 1] + H[2, 2]
-        r[:, 0] = (keypoints[:, 0] * H[0, 0] + keypoints[:, 1] * H[0, 1] + H[0, 2]) / Denominator
-        r[:, 1] = (keypoints[:, 0] * H[1, 0] + keypoints[:, 1] * H[1, 1] + H[1, 2]) / Denominator
-
-        return r
-
-    def filter_keypoints(points, prob, des, shape):
-        """ Keep only the points whose coordinates are
-        inside the dimensions of shape. """
-        mask = (points[:, 0] >= 0) & (points[:, 0] < shape[0]) &\
-               (points[:, 1] >= 0) & (points[:, 1] < shape[1])
-        return points[mask, :], prob[mask, :], des[mask, :]
-
-    def keep_true_keypoints(points, H, shape):
-        """ Keep only the points whose warped coordinates by H
-        are still inside shape. """
-        warped_points = warp_keypoints(points[:, [0, 1]], H)
-        warped_points[:, [0, 1]] = warped_points[:, [0, 1]]
-        mask = (warped_points[:, 0] >= 0) & (warped_points[:, 0] < shape[0]) &\
-               (warped_points[:, 1] >= 0) & (warped_points[:, 1] < shape[1])
-        return points[mask, :]
-
-    def select_k_best(points, prob, des, k):
-        """ Select the k most probable points (and strip their proba).
-        points has shape (num_points, 3) where the last coordinate is the proba. """
-        # sorted_prob = points[points[:, 2].argsort(), :2]
-        sort = prob.argsort(axis=0)  # 从小到大的顺序
-        sorted_prob = points[sort, :]
-        sorted_des = des[sort, :]
-
-        start = min(k, points.shape[0])
-        return sorted_prob[-start:, :], sorted_des[-start:, :]
-        # return sorted_prob[:start, :], des[:start, :]
-
-    paths_usp = get_paths_out(eval_out)
+    paths_usp = get_paths_out(eval_out, mode=eval_data)
     # paths_data = get_paths_data(eval_data)
 
     repeatability = []
@@ -255,7 +206,7 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
 
         H = data['mat']
 
-        shape = data['img_wh']
+        size = data['img_wh']
 
         # print('cur_index:', cur_index)
         # shape = data['warped_prob'].shape
@@ -271,14 +222,18 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
         # warped_keypoints = np.stack([warped_keypoints[0],
         #                              warped_keypoints[1],
         #                              warped_prob], axis=-1)
-        # warped_keypoints = keep_true_keypoints(warped_keypoints, np.linalg.inv(H), shape)
+        warped_keypoints, warped_prob, warped_des = keep_true_keypoints(warped_keypoints,
+                                                                        warped_prob,
+                                                                        warped_des,
+                                                                        np.linalg.inv(H),
+                                                                        size)
         # warped_keypoints = keep_true_keypoints(warped_keypoints, H, shape)
-        warped_keypoints, warped_prob, warped_des = filter_keypoints(warped_keypoints, warped_prob, warped_des, shape)
+        # warped_keypoints, warped_prob, warped_des = filter_keypoints(warped_keypoints, warped_prob, warped_des, shape)
 
         # Warp the original keypoints with the true homography
         true_warped_keypoints = warp_keypoints(keypoints[:, [0, 1]], H)
         # true_warped_keypoints = np.stack([true_warped_keypoints[:, 1], true_warped_keypoints[:, 0], prob], axis=-1)
-        true_warped_keypoints, prob, des = filter_keypoints(true_warped_keypoints, prob, des, shape)
+        true_warped_keypoints, prob, des = filter_keypoints(true_warped_keypoints, prob, des, size)
 
         # Keep only the keep_k_points best predictions
         if warped_keypoints.shape[0] < 1 or true_warped_keypoints.shape[0] < 1:
@@ -293,8 +248,8 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
         N1s.append(N1)
         N2s.append(N2)
 
-        true_warped_keypoints = np.squeeze(true_warped_keypoints, axis=1)
-        warped_keypoints = np.squeeze(warped_keypoints, axis=1)
+        true_warped_keypoints = 1.*true_warped_keypoints/np.asarray(size)*np.asarray(size_eval)
+        warped_keypoints = 1.*warped_keypoints/np.asarray(size)*np.asarray(size_eval)
 
         true_warped_keypoints = np.expand_dims(true_warped_keypoints, 1)
         warped_keypoints = np.expand_dims(warped_keypoints, 0)
@@ -320,8 +275,8 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
         correct_dist = dist[np.less_equal(dist, distance_thresh)]
         # error.append(correct_dist)
 
-        warped_des = np.squeeze(warped_des, axis=1)
-        des = np.squeeze(des, axis=1)
+        # warped_des = np.squeeze(warped_des)
+        # des = np.squeeze(des)
 
         l1 = warped_des.dot(warped_des.T) / np.outer(np.linalg.norm(warped_des, axis=1), np.linalg.norm(warped_des, axis=1))
         l1 = l1 - np.eye(l1.shape[0])
@@ -339,7 +294,7 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
                 localization_err += (local_err2.sum())/ (count1 + count2)
             error.append(localization_err)
     if verbose:
-        print("eval image size by W x H: ", shape)
+        print("eval image size by W x H: ", size_eval)
         print("Average number of points in the first image: " + str(np.mean(N1s)))
         print("Average number of points in the second image: " + str(np.mean(N2s)))
     # return np.mean(repeatability), np.mean(np.concatenate(error)), np.mean(sim)
@@ -348,7 +303,7 @@ def compute_repeatability(eval_out, eval_data, keep_k_points=300,
 if __name__ == '__main__':
 
     start_epoch = 0
-    end_epoch = 20
+    end_epoch = 0
     print('start process epoch:%d -> %d' % (start_epoch, end_epoch))
 
     for i in range(start_epoch, end_epoch + 1):
@@ -357,13 +312,14 @@ if __name__ == '__main__':
         eval_dis = 3
 
         eval_out = eval_root_path + ('epoch_%d' % eval_epoch) + '/HPatch/'
-        eval_data = data_root_path + 'HPatch/'
+        eval_data = data_root_path + 'hpatches-sequences-release/'
+        eval_out = '/home/bodong/hpatches_result/'
         if not os.path.exists(eval_out):
             continue
 
         print(('\neval_epoch:%d, eval_topk:%d, eval_dis:%d' % (eval_epoch, eval_topk, eval_dis)))
 
-        repeatability, loc_error, sim = compute_repeatability(eval_out=eval_out, eval_data=eval_data, keep_k_points=eval_topk, distance_thresh=eval_dis, verbose=True)
+        repeatability, loc_error, sim = compute_repeatability(eval_out=eval_out, eval_data='i', keep_k_points=eval_topk, distance_thresh=eval_dis, verbose=True)
         print('repeatability:', repeatability)
         print('loc l1 error pixel:', loc_error)
         print('cosine similarity rang[-1, 1]:', sim)

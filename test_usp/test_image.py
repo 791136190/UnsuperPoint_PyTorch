@@ -3,7 +3,7 @@ import torch
 import cv2
 import numpy as np
 import argparse
-from Unsuper.utils import common_utils
+from Unsuper.utils import common_utils, utils
 from Unsuper.configs.config import cfg, cfg_from_list, cfg_from_yaml_file
 from symbols.get_model import get_sym
 
@@ -39,10 +39,11 @@ def parse_config():
     return args, cfg
 
 def main():
-    dist_test = False
+    dist_test = True
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     args, cfg = parse_config()
 
-    ckpt_dir = '../output/ckpt/checkpoint_epoch_20.pth'
+    ckpt_dir = '../output/ckpt/checkpoint_epoch_14.pth'
 
     model = get_sym(model_config=cfg['MODEL'], image_shape=cfg['data']['IMAGE_SHAPE'], is_training=False)
 
@@ -56,26 +57,28 @@ def main():
 
     with torch.no_grad():
         model.load_params_from_file(filename=ckpt_dir, logger=logger, to_cpu=dist_test)
-        model.cuda()
+        # model.cuda()
+        model.to(device)
         model.eval()
 
-        img = cv2.imread('../img/img3.jpg')
+        img = cv2.imread('../img/img1.jpg')
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         new_h, new_w = cfg['data']['IMAGE_SHAPE']
 
         resize_img = cv2.resize(img, (new_w, new_h))
+        # np.save('./test_img.npy',resize_img)
         src_img = torch.tensor(resize_img, dtype=torch.float32)
         src_img = torch.unsqueeze(src_img, 0)
         src_img = src_img.permute(0, 3, 1, 2)
-        img0_tensor = src_img.cuda()
+        img0_tensor = src_img.to(device)
         pred_dict = model.predict(img0_tensor)
 
         # to onnx
         input_names = ['input']
         output_names = ['score', 'position', 'descriptor']
         torch.onnx.export(model, img0_tensor, '../output/usp.onnx', input_names=input_names, output_names=output_names,
-                          verbose=True)#, keep_initializers_as_inputs=True, opset_version=11
+                          verbose=True, opset_version=11)#, keep_initializers_as_inputs=True, opset_version=11
         # flops
         flops, params = profile(model, inputs=(img0_tensor,))
         flops, params = clever_format([flops, params], "%.3f")
@@ -89,6 +92,12 @@ def main():
             p1 = pred_dict[j]['p1'][loc]
             d1 = pred_dict[j]['d1'][loc]
             s1 = s1[loc]
+
+            input = np.concatenate((s1[:,None], p1, d1), axis=1)
+            keep = utils.key_nms(input, 8)
+            p1 = p1[keep]
+            d1 = d1[keep]
+            s1 = s1[keep]
             # print(p1)
             img = cv2.cvtColor(resize_img, cv2.COLOR_RGB2BGR)
             for i in range(p1.shape[0]):
