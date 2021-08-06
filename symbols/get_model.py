@@ -228,8 +228,6 @@ class UnSuperPoint(ModelTemplate):
         p = position.shape[0]
         idx_f = torch.arange(p).float().to(self.device).detach()
         uni_l2 = torch.mean(torch.pow(position[idx] - (idx_f / p), 2))
-
-
         return uni_l2
 
     def desc_loss(self, d_a, d_b, dis):
@@ -305,7 +303,6 @@ class UnSuperPoint(ModelTemplate):
         rs = torch.mm(reshape_d.transpose(1, 0), reshape_d) + 1
         ys = rs - 2 * torch.eye(p, device=reshape_d.device)
         loss = torch.mean(ys)
-
         return loss
 
     def predict(self, img):
