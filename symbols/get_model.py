@@ -10,7 +10,7 @@ from symbols.model_base import ModelTemplate
 class UnSuperPoint(ModelTemplate):
     def __init__(self, base_model, model_config, IMAGE_SHAPE, training=True):
         super(UnSuperPoint, self).__init__()
-
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # self.config = model_config
         self.downsample = model_config['downsample']
         # self.L2_norm = model_config['L2_norm']
@@ -69,7 +69,7 @@ class UnSuperPoint(ModelTemplate):
         )
 
     def forward(self, x):
-        x = x * 0.007843  # /127.5
+        x = x /256. - 0.5  # /127.5
         feature = self.base_model(x)
 
         s = self.score(feature)
@@ -82,7 +82,7 @@ class UnSuperPoint(ModelTemplate):
     def loss(self, batch_as, batch_ap, batch_ad, batch_bs, batch_bp, batch_bd, batch_mat):
         loss = 0
         batch = batch_as.shape[0]
-        loss_batch_array = np.zeros((4,))
+        loss_batch_array = np.zeros((7,))
 
         for i in range(batch):
             loss_batch, loss_item = self.UnsuperPointLoss(batch_as[i], batch_ap[i], batch_ad[i],
@@ -106,15 +106,16 @@ class UnSuperPoint(ModelTemplate):
         position_a = self.get_position(a_p, self.cell, self.downsample, flag='A', mat=mat)  # c h w, where c==2
         position_b = self.get_position(b_p, self.cell, self.downsample, flag='B', mat=None)
 
-        key_dist = self.get_dis(position_a, position_b)  # c h w -> c p p
+        key_dist = self.get_dis(position_a, position_b)  # c h w -> p p
 
         batch_loss = 0
         loss_item = []
 
         if self.usp > 0:
-            usp_loss = self.usp * self.usp_loss(a_s, b_s, key_dist)
+            position_k_loss, score_k_loss, usp_k_loss = self.usp_loss(a_s, b_s, key_dist)
+            usp_loss = self.usp * (position_k_loss + score_k_loss + usp_k_loss)
             batch_loss += usp_loss
-            loss_item.append(usp_loss.item())
+            loss_item.extend([usp_loss.item(), position_k_loss.item(), score_k_loss.item(), usp_k_loss.item()])
         else:
             loss_item.append(0.)
 
@@ -155,13 +156,13 @@ class UnSuperPoint(ModelTemplate):
             return res
 
     def get_dis(self, p_a, p_b):
-        c = p_a.shape[0]
-        reshape_pa = p_a.reshape((c, -1)).permute(1, 0)  # c h w -> c p
+        c = p_a.shape[0] # 2
+        reshape_pa = p_a.reshape((c, -1)).permute(1, 0)  # c h w -> c p -> p c
         reshape_pb = p_b.reshape((c, -1)).permute(1, 0)
 
-        x = torch.unsqueeze(reshape_pa[:, 0], 1) - torch.unsqueeze(reshape_pb[:, 0], 0)  # c p -> c p 1 - c 1 p -> c p p
+        x = torch.unsqueeze(reshape_pa[:, 0], 1) - torch.unsqueeze(reshape_pb[:, 0], 0)  # p c -> p 1 - 1 p -> p p
         y = torch.unsqueeze(reshape_pa[:, 1], 1) - torch.unsqueeze(reshape_pb[:, 1], 0)
-        dis = torch.sqrt(torch.pow(x, 2) + torch.pow(y, 2) + self.eps)
+        dis = torch.sqrt(torch.pow(x, 2) + torch.pow(y, 2) + self.eps) # p p
         return dis
 
     def usp_loss(self, a_s, b_s, dis):
@@ -173,7 +174,9 @@ class UnSuperPoint(ModelTemplate):
 
         sk_ = (reshape_as_k + reshape_bs_k) / 2
         d_ = torch.mean(d_k)
-        usp_k_loss = torch.mean(sk_ * (d_k - d_))  # 可重复性监督，分数高的地方->距离就小。分数低的地方->距离就大
+        # 可重复性监督，分数高的地方->距离就小。分数低的地方->距离就大, 因为有正有负，这样就会让负数的score变大
+        # 负数的存在是关键，是让score提高的关键变量
+        usp_k_loss = torch.mean(sk_ * torch.detach(d_k - d_))
 
         # 按文章的思路，距离小的地方->分数高，距离大的地方->分数低
         # high = (d_k > d_) sk_[high] = sk_[high]
@@ -189,7 +192,8 @@ class UnSuperPoint(ModelTemplate):
         # print(usp_k_loss, position_k_loss, score_k_loss)
 
         total_usp = position_k_loss + score_k_loss + usp_k_loss
-        return total_usp
+        # return total_usp
+        return position_k_loss, score_k_loss, usp_k_loss
 
     def get_point_pair(self, a_s, b_s, dis):
         a2b_min_id = torch.argmin(dis, dim=1)
@@ -220,20 +224,20 @@ class UnSuperPoint(ModelTemplate):
         # p = len(position)
         # uni_l1 = torch.mean(torch.pow(position - (i - 1) / (p - 1), 2))
 
-        idx = torch.argsort(position)  # 返回的索引是0开始的 上面的方式loss会略大0.000x级别
-        idx = idx.float()
+        idx = torch.argsort(position).detach()  # 返回的索引是0开始的 上面的方式loss会略大0.000x级别
         p = position.shape[0]
-        uni_l2 = torch.mean(torch.pow(position - (idx / p), 2))
+        idx_f = torch.arange(p).float().to(self.device).detach()
+        uni_l2 = torch.mean(torch.pow(position[idx] - (idx_f / p), 2))
+
 
         return uni_l2
 
     def desc_loss(self, d_a, d_b, dis):
-        # 这里应该增加一个score的信息，在score低的区域，我们可以考虑不监督描述子的生成
-        c = d_a.shape[0]
+        c = d_a.shape[0] # num of feature 128 or 256
         reshape_da = d_a.reshape((c, -1)).permute(1, 0)  # c h w -> c p -> p c
         reshape_db = d_b.reshape((c, -1))  # c h w -> c p
-        pos = (dis <= 8)
-        neg = (dis > 8)
+        pos = (dis.detach() <= 8)
+        neg = (dis.detach() > 8)
         ab = torch.mm(reshape_da, reshape_db)  # p c * c p -> p p
 
         # 监督图a和图b的相同位置生成相似的描述子
