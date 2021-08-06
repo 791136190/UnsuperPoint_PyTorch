@@ -73,13 +73,13 @@ def inference(model, image_list, eval_out, shape, border_remove):
                          dst_score=ss[i + 1], dst_point=ls[i + 1], dst_des=ds[i + 1], mat=mats[i + 1], img_wh=whs[i + 1])
 
 
-def evaluation(model, eval_topk=300, eval_dis=3, size=[320,240],border_remove=4,
+def evaluation(model, eval_topk=300, eval_dis=3, shape=[240,320],border_remove=4,
                val_path='/home/bodong/hpatches-sequences-release/*', eval_out='./output/hpatches-result/'):
 
     image_list = sorted(glob.glob(val_path))
 
     # output image list result
-    inference(model, image_list, eval_out, size[::-1], border_remove)
+    inference(model, image_list, eval_out, shape, border_remove)
 
     # for illumination
     repeatability1, loc_error1, sim1 = compute_repeatability(eval_out=eval_out, eval_data='i',
