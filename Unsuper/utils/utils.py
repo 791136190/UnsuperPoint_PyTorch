@@ -11,7 +11,7 @@ def resize_img(img, IMAGE_SHAPE):
         new_w = IMAGE_SHAPE[1]
         h = new_h
         w = new_w
-        img = cv2.resize(img, (new_w, new_h))
+        img = cv2.resize(img, (new_w, new_h), np.random.randint(3))
     new_h, new_w = IMAGE_SHAPE
     try:
         top = np.random.randint(0, h - new_h + 1)

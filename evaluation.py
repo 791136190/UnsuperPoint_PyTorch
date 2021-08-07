@@ -79,7 +79,7 @@ def evaluation(model, eval_topk=300, eval_dis=3, shape=[240,320],border_remove=4
     image_list = sorted(glob.glob(val_path))
 
     # output image list result
-    # inference(model, image_list, eval_out, shape, border_remove)
+    inference(model, image_list, eval_out, shape, border_remove)
 
     # for illumination
     print('******illumination******')
@@ -94,7 +94,7 @@ def evaluation(model, eval_topk=300, eval_dis=3, shape=[240,320],border_remove=4
 
 
     # calculate homo
-    correctness_thresh = [1,3,4]
+    correctness_thresh = [1,3,5]
     correctness = []
     for thres in correctness_thresh:
         result = homography_estimation(eval_out, correctness_thresh=thres)

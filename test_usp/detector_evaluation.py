@@ -308,17 +308,12 @@ if __name__ == '__main__':
         eval_topk = 300
         eval_dis = 3
 
-        eval_out = eval_root_path + ('epoch_%d' % eval_epoch) + '/HPatch/'
-        eval_data = data_root_path + 'hpatches-sequences-release/'
         eval_out = '/home/bodong/hpatches_result/'
         if not os.path.exists(eval_out):
             continue
 
         print(('\neval_epoch:%d, eval_topk:%d, eval_dis:%d' % (eval_epoch, eval_topk, eval_dis)))
 
-        repeatability, loc_error, sim = compute_repeatability(eval_out=eval_out, eval_data='v', keep_k_points=eval_topk, distance_thresh=eval_dis, verbose=True)
-        print('repeatability:', repeatability)
-        print('loc l1 error pixel:', loc_error)
-        print('cosine similarity rang[-1, 1]:', sim)
+        repeatability, loc_error, sim = compute_repeatability(eval_out=eval_out, eval_data='', keep_k_points=eval_topk, distance_thresh=eval_dis, verbose=True)
 
     print('\nend all process!!')

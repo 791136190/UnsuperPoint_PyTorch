@@ -1,8 +1,8 @@
 data:
     train_name: 'COCODataset'
     train_path: '/opt/train_data/COCO_data/'
-    val_path: '/opt/train_data/COCO_data/hpatches-sequences-release/*'
-    eval_out: '/home/bodong/playground/slam/UnsuperPoint_PyTorch/output/hpatches-result/'
+    val_path: '/opt/train_data/COCO_data/hpatches-sequences-release/'
+    eval_out: '/home/bodong/playground/slam/UnsuperPoint_PyTorch/output/'
 #    train_path: '/media/bodong/data/data'
 #    val_path: '/media/bodong/data/data'
     export_name: 'HPatch'
@@ -16,14 +16,14 @@ data:
         scale: 0.2
         perspective: 0.2
     IMAGE_SHAPE: [240, 320]
-    batch_size: 5
+    batch_size: 4
 
 MODEL:
     name: 'UnsuperPoint'
     L2_norm: True
     OPTIMIZATION:
-        name: 'adam'
-        LR: 0.001
+        name: 'sgd'
+        LR: 0.01
         weight_decay: 0.0001
         decay_step_list: [0.6, 0.8]
         LR_decay: 0.1
@@ -35,14 +35,14 @@ MODEL:
         GRAD_NORM_CLIP: 10
     LOSS:
         usp: 1.0
-        uni_xy: 100
-        desc: 0.001
-        decorr: 0.03
+        uni_xy: 0.25
+        desc: 1.0
+        decorr: 0.05
     downsample: 8
     correspond: 4
     position_weight: 1.0
-    score_weight: 2.0
-    rep_weight: 1.0
+    score_weight: 4.0
+    rep_weight: 2.0
     m_p: 1.0
     m_n: 0.2
     d: 250

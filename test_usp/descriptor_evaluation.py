@@ -144,8 +144,8 @@ def get_homography_matches(exper_name, keep_k_points=1000,
     return outputs
 
 if __name__ == '__main__':
-    eval_out = '/home/bodong/hpatches_result_sp/'
-    correctness_thresh = 1
+    eval_out = '/home/bodong/hpatches_result/'
+    correctness_thresh = 3
     keep_k_points = 1000
 
     correct = homography_estimation(eval_out=eval_out, keep_k_points=keep_k_points,

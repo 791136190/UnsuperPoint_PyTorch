@@ -168,15 +168,15 @@ class UnSuperPoint(ModelTemplate):
     def usp_loss(self, a_s, b_s, dis):
         reshape_as_k, reshape_bs_k, d_k = self.get_point_pair(a_s, b_s, dis)  # p -> k
 
-        position_k_loss = torch.mean(d_k)  # 最小化距离函数，监督offset
+        position_k_loss = torch.sum(d_k)  # 最小化距离函数，监督offset
 
-        score_k_loss = torch.mean(torch.pow(reshape_as_k - reshape_bs_k, 2))  # 监督分数一致性
+        score_k_loss = torch.sum(torch.pow(reshape_as_k - reshape_bs_k, 2))  # 监督分数一致性
 
         sk_ = (reshape_as_k + reshape_bs_k) / 2
         d_ = torch.mean(d_k)
         # 可重复性监督，分数高的地方->距离就小。分数低的地方->距离就大, 因为有正有负，这样就会让负数的score变大
         # 负数的存在是关键，是让score提高的关键变量
-        usp_k_loss = torch.mean(sk_ * torch.detach(d_k - d_))
+        usp_k_loss = torch.sum(sk_ * torch.detach(d_k - d_))
 
         # 按文章的思路，距离小的地方->分数高，距离大的地方->分数低
         # high = (d_k > d_) sk_[high] = sk_[high]
@@ -227,7 +227,9 @@ class UnSuperPoint(ModelTemplate):
         idx = torch.argsort(position).detach()  # 返回的索引是0开始的 上面的方式loss会略大0.000x级别
         p = position.shape[0]
         idx_f = torch.arange(p).float().to(self.device).detach()
-        uni_l2 = torch.mean(torch.pow(position[idx] - (idx_f / p), 2))
+        uni_l2 = torch.sum(torch.pow(position[idx] - (idx_f / p), 2))
+
+
         return uni_l2
 
     def desc_loss(self, d_a, d_b, dis):
@@ -255,7 +257,7 @@ class UnSuperPoint(ModelTemplate):
         # print(torch.sum(ab[pos]), torch.sum(ab[neg]))
         # print(torch.mean(ab), loss)
         # print('dddddddddd')
-        loss = torch.mean(ab) + margin_loss * 0.5
+        loss = torch.sum(ab)
         return loss
 
     def decorr_loss(self, d_a, d_b):
@@ -300,9 +302,10 @@ class UnSuperPoint(ModelTemplate):
         # loss = torch.mean(torch.pow(ys, 2))
 
         # 监督不同位置描数子整体相关性, -1~1 -> 0~2,
-        rs = torch.mm(reshape_d.transpose(1, 0), reshape_d) + 1
-        ys = rs - 2 * torch.eye(p, device=reshape_d.device)
-        loss = torch.mean(ys)
+        rs = torch.mm(reshape_d.transpose(1, 0), reshape_d)
+        ys = rs - torch.eye(p, device=reshape_d.device)
+        loss = torch.sum(ys)
+
         return loss
 
     def predict(self, img):

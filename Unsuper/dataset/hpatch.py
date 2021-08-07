@@ -15,7 +15,7 @@ class HPatchDataset(BaseDataset):
 
     def init_dataset(self):
         self.name = 'hpatch'
-        base_path = Path('../Data', 'HPatch')
+        base_path = Path(self.config['val_path'])
         folders = list(base_path.iterdir())
         img_paths = []
         for folder in folders:
