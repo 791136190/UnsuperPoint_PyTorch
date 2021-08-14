@@ -10,7 +10,7 @@ from symbols.get_model import get_sym
 from thop import profile
 # 增加可读性
 from thop import clever_format
-
+from PIL import Image
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='../Unsuper/configs/UnsuperPoint_coco.yaml',
@@ -43,7 +43,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     args, cfg = parse_config()
 
-    ckpt_dir = '../output/ckpt/checkpoint_epoch_14.pth'
+    ckpt_dir = '../output/ckpt/checkpoint_epoch_20_rpt_0.579_corr_0.684_wonorm.pth'
 
     model = get_sym(model_config=cfg['MODEL'], image_shape=cfg['data']['IMAGE_SHAPE'], is_training=False)
 
@@ -61,12 +61,13 @@ def main():
         model.to(device)
         model.eval()
 
-        img = cv2.imread('../img/img1.jpg')
-
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.imread('../img/img1.jpg')
+        #
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         new_h, new_w = cfg['data']['IMAGE_SHAPE']
-
-        resize_img = cv2.resize(img, (new_w, new_h))
+        img = Image.open('../img/img1.jpg')
+        resize_img = np.asarray(img.resize((new_w, new_h)))
+        # resize_img = cv2.resize(img, (new_w, new_h))
         # np.save('./test_img.npy',resize_img)
         src_img = torch.tensor(resize_img, dtype=torch.float32)
         src_img = torch.unsqueeze(src_img, 0)
@@ -88,13 +89,13 @@ def main():
         for j in pred_dict.keys():
             # cv2.imwrite(os.path.join(str(data_dir), img_name+suffix), img0[j])
             s1 = pred_dict[j]['s1']
-            loc = np.where(s1 > 0.7)
+            loc = np.where(s1 > 0.5)
             p1 = pred_dict[j]['p1'][loc]
             d1 = pred_dict[j]['d1'][loc]
             s1 = s1[loc]
 
             input = np.concatenate((s1[:,None], p1, d1), axis=1)
-            keep = utils.key_nms(input, 8)
+            keep = utils.key_nms(input, 4)
             p1 = p1[keep]
             d1 = d1[keep]
             s1 = s1[keep]

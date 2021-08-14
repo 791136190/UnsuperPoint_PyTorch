@@ -153,8 +153,9 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
 
 def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
-                lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50, cfg=None):
+                lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50, cfg=None, save_best=True):
     accumulated_iter = start_iter
+    best_correct = 0
     with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
         total_it_each_epoch = len(train_loader)
         dataloader_iter = iter(train_loader)
@@ -180,7 +181,7 @@ def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
 
             # evaluation
             from evaluation import evaluation
-            repeatability, loc_error, sim = evaluation(model,
+            repeatability, loc_error, sim, correct = evaluation(model,
                                                        shape=cfg['data']['IMAGE_SHAPE'],
                                                        val_path=cfg.data.val_path,
                                                        eval_out=cfg.data.eval_out)
@@ -188,8 +189,9 @@ def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
 
             # save trained model
             trained_epoch = cur_epoch + 1
-            if trained_epoch % ckpt_save_interval == 0 and rank == 0:
-
+            if trained_epoch % ckpt_save_interval == 0 and rank == 0 :
+                if (save_best and best_correct>correct[1]):
+                    continue
                 # ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
                 # ckpt_list.sort(key=os.path.getmtime)
                 #
@@ -197,7 +199,9 @@ def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
                 #     for cur_file_idx in range(0, len(ckpt_list) - max_ckpt_save_num + 1):
                 #         os.remove(ckpt_list[cur_file_idx])
 
-                ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d_rpt%.3f' % (trained_epoch, repeatability))
+                ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d_rpt_%.3f_corr_%.3f' % (trained_epoch, 
+                                                                                         repeatability,
+                                                                                         correct[1]))
                 save_checkpoint(checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name)
 
 def model_state_to_cpu(model_state):

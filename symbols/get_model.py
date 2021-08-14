@@ -62,10 +62,14 @@ class UnSuperPoint(ModelTemplate):
             nn.Sigmoid()
         )
         self.descriptor = nn.Sequential(
-            nn.Conv2d(self.input_ch, self.input_ch, 3, 1, padding=1),
-            nn.BatchNorm2d(self.input_ch),
+            nn.Conv2d(self.input_ch, self.input_ch*2, 3, 1, padding=1),
+            nn.BatchNorm2d(self.input_ch*2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(self.input_ch, self.des_ch, 1, 1, padding=0)
+            nn.Conv2d(self.input_ch*2, self.input_ch*2, 3, 1, padding=1),
+            nn.BatchNorm2d(self.input_ch*2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.input_ch*2, self.des_ch, 1, 1, padding=0),
+            nn.BatchNorm2d(self.des_ch)
         )
 
     def forward(self, x):
@@ -76,7 +80,7 @@ class UnSuperPoint(ModelTemplate):
         p = self.position(feature)
         d = self.descriptor(feature)
         # desc = self.interpolate(p, d, self.feature_hw[0], self.feature_hw[1])  # (B, C, H, W)
-        d = torch.nn.functional.normalize(input=d, p=2, dim=1, eps=self.eps)
+        # d = torch.nn.functional.normalize(input=d, p=2, dim=1, eps=self.eps)
         return s, p, d
 
     def loss(self, batch_as, batch_ap, batch_ad, batch_bs, batch_bp, batch_bd, batch_mat):
@@ -236,8 +240,8 @@ class UnSuperPoint(ModelTemplate):
         c = d_a.shape[0] # num of feature 128 or 256
         reshape_da = d_a.reshape((c, -1)).permute(1, 0)  # c h w -> c p -> p c
         reshape_db = d_b.reshape((c, -1))  # c h w -> c p
-        pos = (dis.detach() <= 8)
-        neg = (dis.detach() > 8)
+        pos = (dis.detach() <= 5)
+        neg = (dis.detach() > 5)
         ab = torch.mm(reshape_da, reshape_db)  # p c * c p -> p p
 
         # 监督图a和图b的相同位置生成相似的描述子

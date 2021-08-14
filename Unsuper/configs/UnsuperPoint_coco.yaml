@@ -36,7 +36,7 @@ MODEL:
     LOSS:
         usp: 1.0
         uni_xy: 100
-        desc: 0.001
+        desc: 0.0015
         decorr: 0.03
     downsample: 8
     correspond: 4

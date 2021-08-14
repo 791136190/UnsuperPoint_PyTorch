@@ -123,25 +123,25 @@ def homography_estimation(eval_out, keep_k_points=1000,
     return np.mean(correctness)
 
 
-def get_homography_matches(exper_name, keep_k_points=1000,
-                           correctness_thresh=3, num_images=1, orb=False):
-    """
-    Estimates the homography between two images given the predictions.
-    The experiment must contain in its output the prediction on 2 images, an original
-    image and a warped version of it, plus the homography linking the 2 images.
-    Outputs the keypoints shared between the two views,
-    a mask of inliers points in the first image, and a list of matches meaning that
-    keypoints1[i] is matched with keypoints2[matches[i]]
-    """
-    paths = get_paths(exper_name)
-    outputs = []
-    for path in paths[:num_images]:
-        data = np.load(path)
-        output = compute_homography(data, keep_k_points, correctness_thresh, orb)
-        output['image1'] = data['image']
-        output['image2'] = data['warped_image']
-        outputs.append(output)
-    return outputs
+# def get_homography_matches(exper_name, keep_k_points=1000,
+#                            correctness_thresh=3, num_images=1, orb=False):
+#     """
+#     Estimates the homography between two images given the predictions.
+#     The experiment must contain in its output the prediction on 2 images, an original
+#     image and a warped version of it, plus the homography linking the 2 images.
+#     Outputs the keypoints shared between the two views,
+#     a mask of inliers points in the first image, and a list of matches meaning that
+#     keypoints1[i] is matched with keypoints2[matches[i]]
+#     """
+#     paths = get_paths(exper_name)
+#     outputs = []
+#     for path in paths[:num_images]:
+#         data = np.load(path)
+#         output = compute_homography(data, keep_k_points, correctness_thresh, orb)
+#         output['image1'] = data['image']
+#         output['image2'] = data['warped_image']
+#         outputs.append(output)
+#     return outputs
 
 if __name__ == '__main__':
     eval_out = '/home/bodong/hpatches_result/'

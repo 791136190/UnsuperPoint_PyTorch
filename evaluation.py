@@ -22,7 +22,7 @@ def inference(model, image_list, eval_out, shape, border_remove):
                 img = Image.open(image_path + '/%d.ppm' % i)
                 new_h, new_w = shape
 
-                resize_img = img.resize((new_w, new_h))
+                resize_img = img.resize((new_w, new_h), Image.NEAREST)
                 resize_img = np.asarray(resize_img)
                 # np.save('./test_img.npy',resize_img)
                 src_img = torch.tensor(resize_img, dtype=torch.float32)
@@ -110,8 +110,8 @@ if __name__ == '__main__':
     cfg_from_yaml_file('./Unsuper/configs/UnsuperPoint_coco.yaml', cfg)
 
     model = get_sym(model_config=cfg['MODEL'], image_shape=cfg['data']['IMAGE_SHAPE'], is_training=False)
-    logger = common_utils.create_logger('./test/test_image_log/eval_image.txt')
-    model.load_params_from_file(filename='/home/bodong/Downloads/checkpoint_epoch_6_rpt0.591.pth',
+    logger = common_utils.create_logger('./test_usp/test_image_log/eval_image.txt')
+    model.load_params_from_file(filename='/home/bodong/playground/detection/UnsuperPoint_PyTorch/output/ckpt/checkpoint_epoch_3_rpt_0.616_corr_0.664.pth',
                                 logger=logger,
                                 to_cpu=True,
                                 )

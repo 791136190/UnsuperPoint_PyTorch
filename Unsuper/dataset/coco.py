@@ -129,7 +129,7 @@ class COCODataset(BaseDataset):
             # dst_img = tfs.ToPILImage(mode='RGB')(dst_img)
 
             dst_img = tfs.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.3, hue=0.1)(dst_img)
-            dst_img = tfs.RandomGrayscale(p=0.1)(dst_img)
+            dst_img = tfs.RandomGrayscale(p=0.5)(dst_img)
 
             # PIL -> cv2
             src_img = np.asarray(src_img)
