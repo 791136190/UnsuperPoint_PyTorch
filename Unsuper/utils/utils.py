@@ -4,14 +4,14 @@ import collections
 import random
 import torch
 
-def resize_img(img, IMAGE_SHAPE):
+def resize_img2(img, IMAGE_SHAPE):
     h, w = img.shape[:2]
     if h < IMAGE_SHAPE[0] or w < IMAGE_SHAPE[1]:
         new_h = IMAGE_SHAPE[0]
         new_w = IMAGE_SHAPE[1]
         h = new_h
         w = new_w
-        img = cv2.resize(img, (new_w, new_h))
+        img = cv2.resize(img, (new_w, new_h), np.random.randint(2))
     new_h, new_w = IMAGE_SHAPE
     try:
         top = np.random.randint(0, h - new_h + 1)
@@ -23,6 +23,31 @@ def resize_img(img, IMAGE_SHAPE):
         img = img[top: top + new_h, left: left + new_w]  # crop image
     else:
         img = img[top: top + new_h, left: left + new_w, :]
+    return img
+
+def resize_img(img, IMAGE_SHAPE):
+    h, w = img.shape[:2]
+    new_h, new_w = IMAGE_SHAPE
+    if h < IMAGE_SHAPE[0] or w < IMAGE_SHAPE[1]:
+        new_h = IMAGE_SHAPE[0]
+        new_w = IMAGE_SHAPE[1]
+        h = new_h
+        w = new_w
+        img = cv2.resize(img, (new_w, new_h), np.random.randint(2))
+    else:
+        try:
+            top = np.random.randint(0, h - new_h + 1)
+            left = np.random.randint(0, w - new_w + 1)
+            new_h, new_w = np.random.randint(new_h*0.8,new_h*1.5), np.random.randint(new_w*0.8,new_w*1.5)
+        except:
+            print(h, new_h, w, new_w)
+            raise
+        if len(img.shape) == 2:
+            img = img[top: top + new_h, left: left + new_w]  # crop image
+        else:
+            img = img[top: top + new_h, left: left + new_w, :]
+        new_h, new_w = IMAGE_SHAPE
+        img = cv2.resize(img, (new_w, new_h), np.random.randint(2))
     return img
 
 def dict_update(d, u):
@@ -92,7 +117,7 @@ def enhance(img, config):
     # scale = 1.2 - config['homographic']['scale'] * random.random()  # 缩放 1.2 - 0.2 * (0,1.0) -> (1.2,1.0)
     scale = 1.0 + config['homographic']['scale'] * random.randint(-10, 20) * 0.1  # 缩放 1.2 - 0.2 * (0,1.0) -> (1.2,1.0)
 
-    center_offset = 40
+    center_offset = 60
     center = (IMAGE_SHAPE[1] / 2 + random.randint(-center_offset, center_offset),
               IMAGE_SHAPE[0] / 2 + random.randint(-center_offset, center_offset))
 

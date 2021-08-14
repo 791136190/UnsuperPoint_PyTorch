@@ -1,14 +1,12 @@
-import torch
-import os
 import glob
-import tqdm
-from torch.nn.utils import clip_grad_norm_
-from torch.nn.utils import clip_grad_value_
+import os
+
+import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_sched
 import torchvision
-import numpy as np
-import matplotlib.pyplot as plt
+import tqdm
+from torch.nn.utils import clip_grad_norm_
 
 names = ['usp', 'uni_xy', 'desc', 'decorr', 'des_key', 'peaky']
 colors = ['black', 'orange', 'red', 'red', 'blue', 'green']
@@ -76,7 +74,7 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
         dataloader_iter = iter(train_loader)
 
     if rank == 0:
-        pbar = tqdm.tqdm(total=total_it_each_epoch, leave=leave_pbar, desc='train', dynamic_ncols=True)
+        pbar = tqdm.tqdm_notebook(total=total_it_each_epoch, leave=leave_pbar, desc='train', dynamic_ncols=True)
 
     disp_dict = {}
     for cur_it in range(total_it_each_epoch):
@@ -88,8 +86,8 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
             print('new iters')
 
         if cur_it == 0 and rank == 0:
-            img0_grid = torchvision.utils.make_grid(img0/255.0)
-            img1_grid = torchvision.utils.make_grid(img1/255.0)
+            img0_grid = torchvision.utils.make_grid(img0/256.0-0.5)
+            img1_grid = torchvision.utils.make_grid(img1/256.0-0.5)
 
             tb_log.add_image('original_images', img0_grid)
             tb_log.add_image('homography', img1_grid)
@@ -97,11 +95,10 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
         img0 = img0.cuda()
         img1 = img1.cuda()
         mat = mat.cuda()
-
         try:
             cur_lr = float(optimizer.lr)
         except:
-            cur_lr = optimizer.param_groups[0]['lr']
+            cur_lr = optimizer.defaults['lr']
 
         if tb_log is not None:
             tb_log.add_scalar('learning_rate', cur_lr, accumulated_iter)
@@ -121,7 +118,17 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
         optimizer.step()
 
         accumulated_iter += 1
-        disp_dict.update({'loss': loss.item(), 'lr': cur_lr, 'grad_norm': total_norm})
+        disp_dict.update({'loss': loss.item(),
+                          'lr': cur_lr,
+                          'grad_norm': total_norm,
+                          'usp_loss_total': round(loss_item[0],3),
+                          'pos_loss': round(loss_item[1],3),
+                          'scores_loss': round(loss_item[2],3),
+                          'usp_loss': round(loss_item[3],3),
+                          'uni_xy_loss': round(loss_item[4],3),
+                          'desc_loss': round(loss_item[5],3),
+                          'decorr_loss': round(loss_item[6],3)
+                          })
 
         # log to console and tensorboard
         if rank == 0:
@@ -134,9 +141,9 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
                 tb_log.add_scalar('train_loss', loss, accumulated_iter)
                 tb_log.add_scalar('learning_rate', cur_lr, accumulated_iter)
                 tb_log.add_scalar('usp_loss', loss_item[0], accumulated_iter)
-                tb_log.add_scalar('uni_xy_loss', loss_item[1], accumulated_iter)
-                tb_log.add_scalar('desc_loss', loss_item[2], accumulated_iter)
-                tb_log.add_scalar('decorr_loss', loss_item[3], accumulated_iter)
+                tb_log.add_scalar('uni_xy_loss', loss_item[4], accumulated_iter)
+                tb_log.add_scalar('desc_loss', loss_item[5], accumulated_iter)
+                tb_log.add_scalar('decorr_loss', loss_item[6], accumulated_iter)
 
     lr_scheduler.step()
     if rank == 0:
@@ -146,8 +153,9 @@ def train_one_epoch(model, optimizer, train_loader, lr_scheduler, accumulated_it
 
 def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
-                lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50):
+                lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50, cfg=None, save_best=True):
     accumulated_iter = start_iter
+    best_correct = 0
     with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
         total_it_each_epoch = len(train_loader)
         dataloader_iter = iter(train_loader)
@@ -171,18 +179,29 @@ def train_model(model, optimizer, train_loader, lr_scheduler, optim_cfg,
                 dataloader_iter=dataloader_iter
             )
 
+            # evaluation
+            from evaluation import evaluation
+            repeatability, loc_error, sim, correct = evaluation(model,
+                                                       shape=cfg['data']['IMAGE_SHAPE'],
+                                                       val_path=cfg.data.val_path,
+                                                       eval_out=cfg.data.eval_out)
+            model.train()
+
             # save trained model
             trained_epoch = cur_epoch + 1
-            if trained_epoch % ckpt_save_interval == 0 and rank == 0:
+            if trained_epoch % ckpt_save_interval == 0 and rank == 0 :
+                if (save_best and best_correct>correct[1]):
+                    continue
+                # ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
+                # ckpt_list.sort(key=os.path.getmtime)
+                #
+                # if ckpt_list.__len__() >= max_ckpt_save_num:
+                #     for cur_file_idx in range(0, len(ckpt_list) - max_ckpt_save_num + 1):
+                #         os.remove(ckpt_list[cur_file_idx])
 
-                ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
-                ckpt_list.sort(key=os.path.getmtime)
-
-                if ckpt_list.__len__() >= max_ckpt_save_num:
-                    for cur_file_idx in range(0, len(ckpt_list) - max_ckpt_save_num + 1):
-                        os.remove(ckpt_list[cur_file_idx])
-
-                ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d' % trained_epoch)
+                ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d_rpt_%.3f_corr_%.3f' % (trained_epoch, 
+                                                                                         repeatability,
+                                                                                         correct[1]))
                 save_checkpoint(checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name)
 
 def model_state_to_cpu(model_state):

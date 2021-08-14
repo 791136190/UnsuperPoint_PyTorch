@@ -55,7 +55,7 @@ class COCODataset(BaseDataset):
     def init_dataset(self):
         self.name = 'coco'
         if self.is_training:
-            base_path = Path(self.config['train_path'], 'COCO/images/')
+            base_path = Path(self.config['train_path'], 'train2017/')
             image_paths = list(base_path.iterdir())
             image_paths = [str(p) for p in image_paths]
             np.random.shuffle(image_paths)
@@ -66,7 +66,7 @@ class COCODataset(BaseDataset):
                 image_paths = image_paths[:base]
             return len(image_paths), image_paths
         else:
-            base_path = Path(self.config['train_path'], 'COCO/val2014/')
+            base_path = Path(self.config['train_path'], 'val2017/')
             image_paths = list(base_path.iterdir())
             test_files = [str(p) for p in image_paths][:self.config['export_size']]
             return self.config['export_size'], test_files
@@ -129,7 +129,7 @@ class COCODataset(BaseDataset):
             # dst_img = tfs.ToPILImage(mode='RGB')(dst_img)
 
             dst_img = tfs.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.3, hue=0.1)(dst_img)
-            dst_img = tfs.RandomGrayscale(p=0.1)(dst_img)
+            dst_img = tfs.RandomGrayscale(p=0.5)(dst_img)
 
             # PIL -> cv2
             src_img = np.asarray(src_img)
